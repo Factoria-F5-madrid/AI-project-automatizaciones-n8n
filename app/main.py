@@ -161,6 +161,11 @@ def registrar_venta(concepto, importe, forma_pago, fecha=None):
     return rows("SELECT * FROM ventas WHERE id = ?", cur.lastrowid)[0]
 
 
+if os.getenv("SEED", "1") != "0" and not rows("SELECT 1 FROM apartados LIMIT 1"):
+    from seed import seed
+    seed(crear_apartado, registrar_abono, registrar_venta, vencer_apartado)
+
+
 # --- API para n8n --------------------------------------------------------------
 
 def check_key(x_api_key: str = Header("")):
