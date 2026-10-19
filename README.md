@@ -204,7 +204,8 @@ Estas son las historias del cliente. Cada pareja las pasa a su tablero Kanban (u
 
 Los personajes: **Marisa** (dueña), **la dependienta** y **el cliente** de la tienda.
 
-### 🟢 Esencial
+<details>
+<summary><b>🟢 Esencial</b> · 5 historias</summary>
 
 **HU-01 · Confirmación al apartar** (flujo 1)
 > Como **cliente**, quiero recibir un mensaje al apartar unos zapatos, para tener claro qué he apartado, cuánto he pagado, cuánto me falta y hasta cuándo.
@@ -242,7 +243,10 @@ Los personajes: **Marisa** (dueña), **la dependienta** y **el cliente** de la t
 - [ ] Cualquier flujo que falle envía un aviso con el nombre del flujo, el paso y el error.
 - [ ] El aviso no incluye contraseñas ni claves.
 
-### 🟡 Medio
+</details>
+
+<details>
+<summary><b>🟡 Medio</b> · 5 historias</summary>
 
 **HU-06 · Recordatorios de vencimiento** (flujo 6)
 > Como **cliente**, quiero que me avisen antes de que se acabe el plazo de mi apartado, para no perder mis zapatos ni lo que ya he pagado.
@@ -279,7 +283,10 @@ Los personajes: **Marisa** (dueña), **la dependienta** y **el cliente** de la t
 - [ ] Ejecutarlo dos veces no duplica los datos.
 - [ ] Los casos dudosos (por ejemplo, un abono inicial menor de 5 €) no se cargan y salen en un informe para que Marisa decida.
 
-### 🟠 Avanzado
+</details>
+
+<details>
+<summary><b>🟠 Avanzado</b> · 4 historias</summary>
 
 **HU-11 · Preguntar saldo por Telegram**
 > Como **cliente**, quiero preguntar por Telegram cuánto me falta por pagar, para no tener que llamar o pasar por la tienda.
@@ -307,7 +314,10 @@ Los personajes: **Marisa** (dueña), **la dependienta** y **el cliente** de la t
 - [ ] A los modelos de IA solo se envía lo imprescindible y se documenta qué datos salen.
 - [ ] Solo se envían mensajes a clientes que han dado su consentimiento.
 
-### 🔴 Experto
+</details>
+
+<details>
+<summary><b>🔴 Experto</b> · 2 historias</summary>
 
 **HU-15 · Panel para Marisa**
 > Como **Marisa**, quiero ver en una pantalla las ventas, la recaudación, lo pendiente de cobro y los apartados que van a vencer, para decidir sin abrir hojas ni correos.
@@ -321,6 +331,8 @@ Los personajes: **Marisa** (dueña), **la dependienta** y **el cliente** de la t
 - [ ] Despliegue en la nube con HTTPS.
 - [ ] Copias de seguridad automáticas de los datos de n8n.
 - [ ] Un cambio en los flujos pasa por CI (validación de los JSON) antes de mergear.
+
+</details>
 
 ## 🤖 Desarrollo Agéntico con IA
 
