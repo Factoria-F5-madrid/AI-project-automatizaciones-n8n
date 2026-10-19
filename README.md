@@ -63,7 +63,7 @@ docker compose up -d
 **Qué hace ya la app:**
 
 - Guarda los datos (SQLite) y **aplica las reglas del apartado**: abono inicial mínimo, plazo de 90 días, no pagar de más y liquidación automática.
-- Pantallas para la dependienta: lista de apartados por estado, ficha de cada apartado con sus abonos y ventas directas.
+- Pantallas para la dependienta: lista de apartados con buscador, filtros por estado y paginación, alta de apartados, ficha de cada apartado con sus abonos y ventas directas.
 - Botón **Descargar Excel** con una hoja por tabla (Apartados, Abonos, Ventas, Vales), para que Marisa siga teniendo "su Excel".
 
 **Cómo se conecta con n8n:**
@@ -94,6 +94,14 @@ docker compose up -d
   | `GET /api/ventas?desde=&hasta=` | Ventas entre dos fechas |
   | `POST /api/ventas` | Registrar una venta |
   | `GET /api/vales` | Vales de compra generados |
+
+**Datos de ejemplo:** la primera vez que arranca, la app se llena sola con unos meses de actividad de la tienda (24 apartados y unas 250 ventas), con fechas relativas al día en que la levantéis. Así siempre hay:
+
+- apartados que vencen **dentro de 7 días** y **mañana** (para los recordatorios),
+- apartados **fuera de plazo** que siguen activos (para que vuestro flujo los venza),
+- apartados liquidados, uno ya vencido con su vale, y ventas y abonos de **hoy** y de los **meses anteriores** (para el cierre diario y el informe mensual).
+
+Los clientes de ejemplo tienen correos `@example.com`: para recibir vosotros los mensajes, cread un apartado nuevo con vuestro correo. Para empezar de cero, `docker compose down -v` borra los datos, y con `SEED=0` en el `.env` la app arranca vacía.
 
 **Lo que la app NO hace (y os toca a vosotros con n8n):** avisar a los clientes, recordar vencimientos, vencer los apartados fuera de plazo, hacer cierres de caja, calcular la recaudación mensual y el total pendiente, enviar informes y migrar el Excel antiguo.
 

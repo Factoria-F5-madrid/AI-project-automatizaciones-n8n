@@ -5,6 +5,7 @@ from datetime import date, timedelta
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "test.db")
 os.environ["API_KEY"] = "test"
 os.environ["N8N_WEBHOOK_URL"] = ""
+os.environ["SEED"] = "0"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -50,5 +51,25 @@ def test_ventas_por_fecha_y_excel():
 
 def test_pantallas():
     assert c.get("/").status_code == 200
-    r = c.post("/apartados", data=NUEVO | {"abono_inicial": 2, "forma_pago": "efectivo"}, follow_redirects=True)
-    assert "abono inicial mínimo" in r.text
+    r = c.post("/apartados", data=NUEVO | {"abono_inicial": 2, "forma_pago": "efectivo"})
+    assert r.status_code == 422 and "abono inicial mínimo" in r.text and "Carmen Ruiz" in r.text  # no se pierde lo escrito
+    assert c.get("/apartados/nuevo").status_code == 200
+    assert c.get("/?estado=&q=Carmen&pagina=99").status_code == 200
+    assert c.get("/ventas?pagina=2").status_code == 200
+
+
+def test_datos_de_ejemplo():
+    import main
+    from seed import seed
+
+    main.DB_PATH = os.path.join(tempfile.mkdtemp(), "seed.db")
+    with main.db() as con:
+        con.executescript(main.SCHEMA)
+    seed(main.crear_apartado, main.registrar_abono, main.registrar_venta, main.vencer_apartado)
+    activos = c.get("/api/apartados?estado=activo").json()
+    hoy = date.today()
+    limites = {date.fromisoformat(a["fecha_limite"]) - hoy for a in activos}
+    assert {timedelta(days=7), timedelta(days=1)} <= limites  # recordatorios
+    assert any(d < timedelta(0) for d in limites)  # fuera de plazo pendientes de vencer
+    assert c.get("/api/apartados?estado=liquidado").json() and c.get("/api/vales").json()
+    assert c.get(f"/api/ventas?desde={hoy}&hasta={hoy}").json() or hoy.weekday() == 6

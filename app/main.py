@@ -161,6 +161,11 @@ def registrar_venta(concepto, importe, forma_pago, fecha=None):
     return rows("SELECT * FROM ventas WHERE id = ?", cur.lastrowid)[0]
 
 
+if os.getenv("SEED", "1") != "0" and not rows("SELECT 1 FROM apartados LIMIT 1"):
+    from seed import seed
+    seed(crear_apartado, registrar_abono, registrar_venta, vencer_apartado)
+
+
 # --- API para n8n --------------------------------------------------------------
 
 def check_key(x_api_key: str = Header("")):
@@ -268,33 +273,67 @@ def api_vales():
 # --- Pantallas de la tienda ---------------------------------------------------
 # ponytail: sin login, pensada para usarse en el ordenador de la tienda. Añadir auth si se publica.
 
-def page(request, name, **ctx):
-    return templates.TemplateResponse(request, name, ctx | {"formas_pago": FORMAS_PAGO})
+POR_PAGINA = 25
+ESTADOS = ["activo", "liquidado", "vencido"]
+
+
+def page(request, name, status_code=200, **ctx):
+    ctx = {"formas_pago": FORMAS_PAGO, "error": "", "ok": request.query_params.get("ok", "")} | ctx
+    return templates.TemplateResponse(request, name, ctx, status_code=status_code)
+
+
+def con_dias(apartado):
+    """Añade cuántos días quedan hasta la fecha límite (negativo si ya pasó)."""
+    return apartado | {"dias": (date.fromisoformat(apartado["fecha_limite"]) - date.today()).days}
+
+
+def paginar(total, pagina):
+    paginas = max(1, -(-total // POR_PAGINA))
+    pagina = min(max(1, pagina), paginas)
+    return pagina, paginas, (pagina - 1) * POR_PAGINA
 
 
 @app.get("/", include_in_schema=False)
-def ui_apartados(request: Request, estado: str = "activo", error: str = ""):
-    sql = APARTADOS_SQL + (" WHERE a.estado = ?" if estado else "") + " GROUP BY a.id ORDER BY a.fecha_limite"
-    return page(request, "apartados.html", apartados=rows(sql, *([estado] if estado else [])),
-                estado=estado, error=error, hoy=date.today().isoformat())
+def ui_apartados(request: Request, estado: str = "activo", q: str = "", pagina: int = 1):
+    where, args = [], []
+    if estado in ESTADOS:
+        where.append("a.estado = ?")
+        args.append(estado)
+    if q.strip():
+        where.append("(a.cliente LIKE ? OR a.producto LIKE ? OR a.telefono LIKE ? OR CAST(a.id AS TEXT) = ?)")
+        args += [f"%{q.strip()}%"] * 3 + [q.strip().lstrip("#")]
+    filtro = (" WHERE " + " AND ".join(where)) if where else ""
+    total = rows("SELECT COUNT(*) AS n FROM apartados a" + filtro, *args)[0]["n"]
+    pagina, paginas, offset = paginar(total, pagina)
+    apartados = rows(APARTADOS_SQL + filtro + f" GROUP BY a.id ORDER BY a.fecha_limite LIMIT {POR_PAGINA} OFFSET {offset}", *args)
+    conteo = {r["estado"]: r["n"] for r in rows("SELECT estado, COUNT(*) AS n FROM apartados GROUP BY estado")}
+    return page(request, "apartados.html", apartados=[con_dias(a) for a in apartados], estado=estado, q=q,
+                conteo=conteo | {"": sum(conteo.values())}, total=total, pagina=pagina, paginas=paginas)
+
+
+@app.get("/apartados/nuevo", include_in_schema=False)
+def ui_nuevo_apartado(request: Request):
+    return page(request, "nuevo_apartado.html", form={})
 
 
 @app.post("/apartados", include_in_schema=False)
-def ui_crear_apartado(tasks: BackgroundTasks, cliente: str = Form(), telefono: str = Form(""), email: str = Form(""),
-                      producto: str = Form(), talla: str = Form(""), precio: float = Form(),
-                      abono_inicial: float = Form(), forma_pago: str = Form()):
+async def ui_crear_apartado(request: Request, tasks: BackgroundTasks):
+    form = dict(await request.form())
     try:
-        apartado = crear_apartado(cliente, telefono, email, producto, talla, precio, abono_inicial, forma_pago)
+        apartado = crear_apartado(form.get("cliente", ""), form.get("telefono", ""), form.get("email", ""),
+                                  form.get("producto", ""), form.get("talla", ""), float(form.get("precio") or 0),
+                                  float(form.get("abono_inicial") or 0), form.get("forma_pago", ""))
     except ValueError as e:
-        return RedirectResponse(f"/?error={urllib.parse.quote(str(e))}", 303)
+        # Se vuelve a mostrar el formulario con lo que se había escrito, para no perderlo.
+        return page(request, "nuevo_apartado.html", 422, form=form, error=str(e))
     tasks.add_task(notify, "apartado.creado", apartado)
-    return RedirectResponse(f"/apartados/{apartado['id']}", 303)
+    return RedirectResponse(f"/apartados/{apartado['id']}?ok=Apartado+creado", 303)
 
 
 @app.get("/apartados/{apartado_id}", include_in_schema=False)
 def ui_apartado(request: Request, apartado_id: int, error: str = ""):
-    return page(request, "apartado.html", a=get_apartado(apartado_id), error=error,
-                abonos=rows("SELECT * FROM abonos WHERE apartado_id = ? ORDER BY fecha", apartado_id),
+    return page(request, "apartado.html", a=con_dias(get_apartado(apartado_id)), error=error,
+                abonos=rows("SELECT * FROM abonos WHERE apartado_id = ? ORDER BY fecha DESC, id DESC", apartado_id),
                 vale=(rows("SELECT * FROM vales WHERE apartado_id = ?", apartado_id) or [None])[0])
 
 
@@ -305,12 +344,16 @@ def ui_abono(apartado_id: int, tasks: BackgroundTasks, importe: float = Form(), 
     except ValueError as e:
         return RedirectResponse(f"/apartados/{apartado_id}?error={urllib.parse.quote(str(e))}", 303)
     tasks.add_task(notify, "abono.registrado", apartado | {"importe": importe})
-    return RedirectResponse(f"/apartados/{apartado_id}", 303)
+    ok = "Apartado liquidado: ya puede recoger sus zapatos" if apartado["estado"] == "liquidado" else "Abono registrado"
+    return RedirectResponse(f"/apartados/{apartado_id}?ok={urllib.parse.quote(ok)}", 303)
 
 
 @app.get("/ventas", include_in_schema=False)
-def ui_ventas(request: Request, error: str = ""):
-    return page(request, "ventas.html", ventas=rows("SELECT * FROM ventas ORDER BY fecha DESC, id DESC"), error=error)
+def ui_ventas(request: Request, error: str = "", pagina: int = 1):
+    total = rows("SELECT COUNT(*) AS n FROM ventas")[0]["n"]
+    pagina, paginas, offset = paginar(total, pagina)
+    ventas = rows(f"SELECT * FROM ventas ORDER BY fecha DESC, id DESC LIMIT {POR_PAGINA} OFFSET {offset}")
+    return page(request, "ventas.html", ventas=ventas, error=error, total=total, pagina=pagina, paginas=paginas)
 
 
 @app.post("/ventas", include_in_schema=False)
@@ -320,7 +363,7 @@ def ui_crear_venta(tasks: BackgroundTasks, concepto: str = Form(), importe: floa
     except ValueError as e:
         return RedirectResponse(f"/ventas?error={urllib.parse.quote(str(e))}", 303)
     tasks.add_task(notify, "venta.registrada", venta)
-    return RedirectResponse("/ventas", 303)
+    return RedirectResponse("/ventas?ok=Venta+registrada", 303)
 
 
 @app.get("/excel", include_in_schema=False)

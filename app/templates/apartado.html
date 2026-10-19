@@ -1,38 +1,63 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, euros, estado_badge, plazo, forma_pago_select %}
+{% set seccion = "apartados" %}
 {% block content %}
-<h2>Apartado #{{ a.id }} · <span class="{{ a.estado }}">{{ a.estado }}</span></h2>
-<article>
-  <p><strong>{{ a.cliente }}</strong>{% if a.telefono %} · {{ a.telefono }}{% endif %}{% if a.email %} · {{ a.email }}{% endif %}</p>
-  <p>{{ a.producto }}{% if a.talla %} · Talla {{ a.talla }}{% endif %}</p>
-  <div class="grid">
-    <div>Precio<br><strong>{{ "%.2f"|format(a.precio) }} €</strong></div>
-    <div>Abonado<br><strong>{{ "%.2f"|format(a.abonado) }} €</strong></div>
-    <div>Pendiente<br><strong>{{ "%.2f"|format(a.pendiente) }} €</strong></div>
-    <div>Fecha límite<br><strong>{{ a.fecha_limite }}</strong></div>
+<div class="page-head">
+  <div>
+    <a href="/" class="muted">{{ icon("back", 16) }} Apartados</a>
+    <h1 style="margin-top:8px">Apartado #{{ a.id }} {{ estado_badge(a.estado) }}</h1>
   </div>
-  {% if vale %}<p>Vale de compra <strong>{{ vale.codigo }}</strong> por {{ "%.2f"|format(vale.importe) }} €</p>{% endif %}
-</article>
+</div>
 
-<h3>Abonos</h3>
-<table class="striped">
-  <thead><tr><th>Fecha</th><th>Forma de pago</th><th class="num">Importe</th></tr></thead>
-  <tbody>
-  {% for b in abonos %}
-    <tr><td>{{ b.fecha }}</td><td>{{ b.forma_pago }}</td><td class="num">{{ "%.2f"|format(b.importe) }} €</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="layout-2">
+  <div class="stack">
+    <section class="card card-body stack" aria-label="Resumen">
+      <div>
+        <h2>{{ a.cliente }}</h2>
+        <p class="muted" style="margin:4px 0 0">{{ [a.telefono, a.email]|select|join(" · ") or "Sin datos de contacto" }}</p>
+      </div>
+      <p style="margin:0"><strong>{{ a.producto }}</strong>{% if a.talla %} · Talla {{ a.talla }}{% endif %}</p>
+      <div class="stats">
+        <div class="stat"><div class="label">Precio</div><div class="value">{{ euros(a.precio) }}</div></div>
+        <div class="stat"><div class="label">Pagado</div><div class="value">{{ euros(a.abonado) }}</div></div>
+        <div class="stat"><div class="label">Pendiente</div><div class="value">{{ euros(a.pendiente) }}</div></div>
+      </div>
+      {% set pct = (a.abonado / a.precio * 100)|round|int %}
+      <div>
+        <div class="progress" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Pagado"><span style="width: {{ pct }}%"></span></div>
+        <p class="muted" style="margin:6px 0 0">{{ pct }}% pagado · Apartado el {{ a.fecha }} · Fecha límite {{ a.fecha_limite }} {{ plazo(a) }}</p>
+      </div>
+      {% if vale %}
+        <div class="alert alert-ok" style="margin:0">{{ icon("vale") }} <span>Vale de compra <strong>{{ vale.codigo }}</strong> por {{ euros(vale.importe) }}{% if vale.usado %} (usado){% endif %}</span></div>
+      {% endif %}
+    </section>
 
-{% if a.estado == "activo" %}
-<form method="post" action="/apartados/{{ a.id }}/abonos">
-  <div class="grid">
-    <label>Importe (€) <input name="importe" type="number" step="0.01" min="0.01" max="{{ a.pendiente }}" required></label>
-    <label>Forma de pago
-      <select name="forma_pago">{% for f in formas_pago %}<option>{{ f }}</option>{% endfor %}</select>
-    </label>
+    <section class="card" aria-label="Abonos">
+      <div class="card-body" style="padding-bottom:0"><h2>Abonos</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Forma de pago</th><th class="num">Importe</th></tr></thead>
+          <tbody>
+          {% for b in abonos %}
+            <tr><td>{{ b.fecha }}</td><td>{{ b.forma_pago|capitalize }}</td><td class="num">{{ euros(b.importe) }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
-  <button type="submit">Registrar abono</button>
-</form>
-{% endif %}
-<p><a href="/">← Volver a apartados</a></p>
+
+  {% if a.estado == "activo" and a.dias >= 0 %}
+  <form class="card card-body stack" method="post" action="/apartados/{{ a.id }}/abonos" aria-label="Registrar abono">
+    <h2>Registrar abono</h2>
+    <div><label for="importe">Importe (€)</label>
+      <input id="importe" name="importe" type="number" step="0.01" min="0.01" max="{{ a.pendiente }}" required autofocus aria-describedby="importe-hint">
+      <span class="hint" id="importe-hint">Faltan {{ euros(a.pendiente) }}.</span></div>
+    <div><label for="forma_pago">Forma de pago</label>{{ forma_pago_select(formas_pago) }}</div>
+    <button class="btn btn-primary" type="submit">Registrar abono</button>
+  </form>
+  {% elif a.estado == "activo" %}
+  <div class="card card-body"><div class="alert alert-error" style="margin:0">{{ icon("alert") }} <span>Este apartado está fuera de plazo y no admite más abonos. Hay que vencerlo para generar el vale.</span></div></div>
+  {% endif %}
+</div>
 {% endblock %}
