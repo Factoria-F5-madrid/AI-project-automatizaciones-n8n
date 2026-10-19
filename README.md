@@ -12,6 +12,7 @@ Hoy todo se lleva **a mano**: una libreta para los apartados y un Excel donde Ma
 - Nadie avisa a los clientes de que su plazo está a punto de vencer, así que hay apartados olvidados con zapatos ocupando el almacén.
 - El cierre de caja diario y la suma mensual se hacen con calculadora, tarde y con errores.
 - Marisa no sabe en ningún momento cuánto dinero tiene pendiente de cobrar.
+- Cada vez más clientes pagan sus abonos desde casa por **Bizum o transferencia**. Marisa tiene que revisar los avisos del banco, adivinar de qué apartado es cada pago y apuntarlo a mano; algunos se le pasan.
 
 Marisa ya ha dado el primer paso: una app sencilla donde la dependienta registra apartados, abonos y ventas. Vuestra pareja ha sido contratada para **automatizar todo lo demás con n8n**: lo que hoy se hace con libreta, calculadora y memoria debe ocurrir solo.
 
@@ -43,16 +44,78 @@ En [`data/`](data/) tenéis una muestra del Excel actual de la tienda, tal y com
 - [`excel_actual_apartados.csv`](data/excel_actual_apartados.csv): apartados y abonos mezclados en la misma hoja.
 - [`excel_actual_ventas.csv`](data/excel_actual_ventas.csv): ventas del día y el total mensual sumado a mano.
 
-Son datos **reales del día a día**, con lo que eso implica: fechas en distintos formatos, nombres escritos de varias maneras, importes con el símbolo €, teléfonos que faltan, un abono inicial por debajo del mínimo y totales calculados a mano. Parte del trabajo es diseñar una estructura limpia para los datos y decidir qué hacer con estos casos.
+Son datos **reales del día a día**, con lo que eso implica: fechas en distintos formatos, nombres escritos de varias maneras, importes con el símbolo €, teléfonos que faltan, un abono inicial por debajo del mínimo y totales calculados a mano. Sirven para el flujo de **migración** (nivel medio): limpiarlos y cargarlos en la app por API.
 
-## 🏪 El software de la tienda
+En [`data/correos/`](data/correos/) tenéis **avisos del banco** como los que recibe Marisa cuando un cliente paga por Bizum o transferencia. Sirven para el flujo de **abonos a distancia** (nivel esencial) y están pensados para los apartados de ejemplo de la app. Hay casos fáciles y casos trampa:
 
-Para no empezar de cero, la tienda ya tiene una **aplicación básica** en [`app/`](app/) que sustituye a la libreta. Vuestro trabajo **no es programarla**, sino **automatizar todo lo que pasa alrededor** con n8n.
+| Correo | Qué tiene que pasar |
+|---|---|
+| `01_bizum_carmen`, `09_bizum_silvia` | El nombre coincide con un único apartado activo: se registra el abono |
+| `02_bizum_jorge` | El ordenante está abreviado, pero el concepto trae el nº de apartado |
+| `03_transferencia_lucia` | Paga justo lo que falta: el apartado queda **liquidado** |
+| `04_bizum_laura` | Paga **más** de lo pendiente: la app lo rechaza y hay que avisar a Marisa |
+| `05_bizum_romero` | Solo apellido e inicial y sin concepto: hay que preguntar a Marisa antes de registrar nada |
+| `06_bizum_paula` | El apartado está **fuera de plazo**: no se puede abonar, hay que avisar a Marisa |
+| `07_transferencia_desconocido` | No coincide con ningún cliente: preguntar a Marisa |
+| `08_publicidad_banco` | No es un pago: se ignora |
+
+Para probarlos, enviad estos correos (asunto y cuerpo) a la cuenta que lea n8n. Mientras desarrolláis, también podéis pegar el texto en un formulario de n8n (Form Trigger) para no depender del correo.
+
+## 🚀 Cómo empezar
+
+Necesitáis [Git](https://git-scm.com/) y [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalados y abiertos.
+
+**1. Una persona de la pareja clona el proyecto:**
+
+```bash
+git clone https://github.com/Factoria-F5-madrid/AI-project-automatizaciones-n8n.git paso-firme
+cd paso-firme
+```
+
+**2. Cortad la conexión con este repositorio.** El proyecto es vuestro: no se trabaja sobre el repositorio de Factoría F5, así que hay que quitarle el remoto `origin`:
+
+```bash
+git remote remove origin
+```
+
+**3. Conectadlo a vuestro propio repositorio.** Cread en GitHub un repositorio **vacío** (sin README, sin `.gitignore` y sin licencia) y enlazadlo:
+
+```bash
+git remote add origin https://github.com/<vuestro-usuario>/<vuestro-repo>.git
+git push -u origin main
+```
+
+Si usáis GitHub CLI, los pasos de crear y enlazar se hacen en uno: `gh repo create <vuestro-repo> --private --source . --push`.
+
+**4. Invitad a vuestra pareja** como colaboradora del repositorio (*Settings → Collaborators*). Ella lo clona desde **vuestro** repositorio, no desde este.
+
+**5. A partir de aquí, todo se sube a vuestro repositorio** con el flujo de siempre (rama, commit, push y Pull Request):
+
+```bash
+git switch -c flujo-confirmacion-apartado
+git add .
+git commit -m "Añade flujo de confirmación de apartado"
+git push -u origin flujo-confirmacion-apartado
+```
+
+Comprobad en cualquier momento a dónde apunta vuestro proyecto con `git remote -v`: tiene que salir vuestro repositorio, no el de Factoría F5.
+
+> **¿Y si el profe actualiza el enunciado o la app?** Podéis traer los cambios sin volver a conectaros: `git pull https://github.com/Factoria-F5-madrid/AI-project-automatizaciones-n8n.git main`
+
+**6. Levantad la app y n8n:**
 
 ```bash
 cp .env.example .env
 docker compose up -d
 ```
+
+Cambiad `API_KEY` en el `.env` por una clave vuestra (el `.env` no se sube a GitHub). Después abrid http://localhost:8000 (la tienda) y http://localhost:5678 (n8n; la primera vez os pedirá crear una cuenta local).
+
+Para pararlo todo: `docker compose down`. Para borrar también los datos y empezar de cero: `docker compose down -v`.
+
+## 🏪 El software de la tienda
+
+Para no empezar de cero, la tienda ya tiene una **aplicación básica** en [`app/`](app/) que sustituye a la libreta. Vuestro trabajo **no es programarla**, sino **automatizar todo lo que pasa alrededor** con n8n. Cuando la levantéis (ver [Cómo empezar](#-cómo-empezar)) tendréis:
 
 | Servicio | URL | Para qué |
 |---|---|---|
@@ -128,11 +191,12 @@ Conectar la app de la tienda con un conjunto de **flujos de n8n** que avisen a l
 |---|---|---|---|
 | 1 | **Confirmación de apartado** | Evento `apartado.creado` | Envía al cliente un resumen: qué ha apartado, cuánto ha pagado, cuánto le falta y hasta cuándo |
 | 2 | **Recibo de abono** | Evento `abono.registrado` | Envía el recibo del abono con lo que falta. Si el apartado queda liquidado, avisa de que puede recoger sus zapatos |
-| 3 | **Venta grande** | Evento `venta.registrada` | Avisa a Marisa de las ventas por encima de un importe que ella decida |
-| 4 | **Cierre diario** | Programado (cada noche) | Pide a la API las ventas y abonos del día, suma por forma de pago, guarda el cierre y envía el resumen a Marisa |
-| 5 | **Recordatorios y vencimientos** | Programado (cada mañana) | Avisa a los clientes cuyo plazo vence en 7 días y en 1 día; vence por API los que han pasado el plazo (la app genera el vale) y avisa a la tienda para devolver los zapatos a la venta |
-| 6 | **Informe mensual** | Programado (día 1 de cada mes) | Recaudación del mes (ventas + abonos), total pendiente de cobro, apartados nuevos, liquidados y vencidos, enviado por correo a Marisa |
-| 7 | **Error Workflow** | Error en cualquier flujo | Avisa a la tienda con el flujo, el paso y el error |
+| 3 | **Abonos a distancia** | Correo nuevo (Gmail o IMAP) | Lee los avisos del banco, descarta los que no son pagos, usa **IA** para sacar ordenante, importe y concepto, busca el apartado por API y registra el abono. Si no está claro de quién es, si paga de más o si el apartado está fuera de plazo, **no registra nada** y pregunta a Marisa (correo o Telegram) |
+| 4 | **Venta grande** | Evento `venta.registrada` | Avisa a Marisa de las ventas por encima de un importe que ella decida |
+| 5 | **Cierre diario** | Programado (cada noche) | Pide a la API las ventas y abonos del día, suma por forma de pago, guarda el cierre y envía el resumen a Marisa |
+| 6 | **Recordatorios y vencimientos** | Programado (cada mañana) | Avisa a los clientes cuyo plazo vence en 7 días y en 1 día; vence por API los que han pasado el plazo (la app genera el vale) y avisa a la tienda para devolver los zapatos a la venta |
+| 7 | **Informe mensual** | Programado (día 1 de cada mes) | Recaudación del mes (ventas + abonos), total pendiente de cobro, apartados nuevos, liquidados y vencidos, enviado por correo a Marisa |
+| 8 | **Error Workflow** | Error en cualquier flujo | Avisa a la tienda con el flujo, el paso y el error |
 
 ## 🤖 Desarrollo Agéntico con IA
 
@@ -170,7 +234,7 @@ El editor visual sigue siendo donde se prueba y se revisa: el agente no sustituy
 ## 📦 Entregables
 
 1. Mapa del proceso de apartado: cómo se hace hoy y cómo queda automatizado (diagrama BPMN, Miro, Excalidraw o similar)
-2. Fork de este repositorio con los flujos exportados en JSON (carpeta `workflows/`) y README con instrucciones para importarlos y configurarlos
+2. Vuestro propio repositorio (ver [Cómo empezar](#-cómo-empezar)) con los flujos exportados en JSON (carpeta `workflows/`) y README con instrucciones para importarlos y configurarlos
 3. Lista de credenciales y variables que necesita cada flujo (sin los valores)
 4. Un **flujo de prueba** o script que cree datos de ejemplo en la app por API para poder hacer la demo
 5. Datos de prueba y evidencias de ejecución (capturas o vídeo de un apartado completo: alta, abonos, liquidación)
@@ -185,7 +249,8 @@ El editor visual sigue siendo donde se prueba y se revisa: el agente no sustituy
 ### 🟢 Nivel Esencial
 
 - App y n8n levantados con `docker compose` y conectados (los eventos de la app llegan a n8n)
-- Flujos **1 (Confirmación de apartado)**, **2 (Recibo de abono)** y **4 (Cierre diario)** funcionando
+- Flujos **1 (Confirmación de apartado)**, **2 (Recibo de abono)**, **3 (Abonos a distancia)** y **5 (Cierre diario)** funcionando
+- El flujo 3 resuelve bien los 8 correos de `data/correos/`: la IA solo extrae los datos, y las decisiones (qué apartado es, si se puede registrar) las toma el flujo con la API
 - Un único webhook que reparta los eventos con un nodo **Switch** según el campo `evento`
 - Mensajes al cliente por correo o Telegram con los importes correctos (los da la app, no se recalculan a mano)
 - **Error Workflow** que avise a la tienda
@@ -194,7 +259,7 @@ El editor visual sigue siendo donde se prueba y se revisa: el agente no sustituy
 
 ### 🟡 Nivel Medio
 
-- Flujos **3 (Venta grande)**, **5 (Recordatorios y vencimientos)** y **6 (Informe mensual)**
+- Flujos **4 (Venta grande)**, **6 (Recordatorios y vencimientos)** y **7 (Informe mensual)**
 - Aviso al cliente cuando su apartado vence, con el código y el importe de su vale
 - Sub-workflows reutilizables (**Execute Workflow**), por ejemplo "buscar apartado" o "enviar notificación"
 - **Migración del Excel actual**: flujo que lea los CSV de `data/`, limpie los datos (fechas, nombres, importes), cree los apartados y abonos en la app por API (con su `fecha` original) y deje en un informe los casos dudosos
@@ -206,9 +271,12 @@ El editor visual sigue siendo donde se prueba y se revisa: el agente no sustituy
 - **Asistente de IA por Telegram** (nodo AI Agent con un modelo gratuito y la API de la tienda como herramienta):
   - el cliente pregunta *"¿cuánto me falta?"* y recibe su saldo y fecha límite
   - Marisa pregunta *"¿cuánto se recaudó esta semana?"* o *"¿qué apartados vencen este mes?"*
+- **Otras entradas de datos automáticas** (al menos una):
+  - **Apartados desde casa:** formulario de n8n o bot de Telegram donde el cliente pide apartar unos zapatos; n8n crea una solicitud, avisa a la tienda y el apartado se confirma cuando llega el abono inicial
+  - **Ventas del datáfono:** cada noche n8n importa el CSV de cobros con tarjeta y los registra como ventas, sin duplicar las que ya estén
 - Mensajes de recordatorio redactados por IA con un tono cercano, siempre con los importes calculados por el flujo (nunca por el modelo)
 - Webhook de n8n protegido (autenticación por cabecera) y validación de los datos que llegan
-- Datos personales conforme al RGPD: solo los datos necesarios, consentimiento para recibir mensajes y no enviar teléfonos ni nombres a modelos externos
+- Datos personales conforme al RGPD: solo los datos necesarios, consentimiento para recibir mensajes y no enviar a modelos externos más datos de los imprescindibles (por ejemplo, usar un modelo local con Ollama para leer los correos del banco)
 - Comandos, skills o subagentes personalizados en OpenCode para tareas repetitivas (generar specs, revisar flujos…)
 
 ### 🔴 Nivel Experto
