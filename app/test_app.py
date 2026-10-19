@@ -80,3 +80,8 @@ def test_datos_de_ejemplo():
     assert por_id[12]["cliente"] == "Laura Ortega" and por_id[12]["pendiente"] < 15  # paga de más
     assert por_id[16]["cliente"] == "Paula Ramos" and por_id[16]["dias"] < 0  # fuera de plazo
     assert por_id[24]["cliente"] == "Silvia Cortés" and por_id[24]["pendiente"] >= 5
+
+
+def test_swagger_muestra_authorize():
+    esquemas = TestClient(app).get("/openapi.json").json()["components"]["securitySchemes"]
+    assert any(e["type"] == "apiKey" and e["name"] == "X-API-Key" for e in esquemas.values())
