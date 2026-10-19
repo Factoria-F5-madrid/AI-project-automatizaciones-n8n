@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Ventas directas</h2>
+<form method="post" action="/ventas">
+  <div class="grid">
+    <label>Concepto <input name="concepto" required placeholder="Bota montaña T41"></label>
+    <label>Importe (€) <input name="importe" type="number" step="0.01" min="0.01" required></label>
+    <label>Forma de pago
+      <select name="forma_pago">{% for f in formas_pago %}<option>{{ f }}</option>{% endfor %}</select>
+    </label>
+  </div>
+  <button type="submit">Registrar venta</button>
+</form>
+<div class="overflow-auto">
+<table class="striped">
+  <thead><tr><th>Fecha</th><th>Concepto</th><th>Forma de pago</th><th class="num">Importe</th></tr></thead>
+  <tbody>
+  {% for v in ventas %}
+    <tr><td>{{ v.fecha }}</td><td>{{ v.concepto }}</td><td>{{ v.forma_pago }}</td><td class="num">{{ "%.2f"|format(v.importe) }} €</td></tr>
+  {% else %}
+    <tr><td colspan="4">Todavía no hay ventas.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
