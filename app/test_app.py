@@ -9,7 +9,7 @@ os.environ["SEED"] = "0"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from main import app  # noqa: E402
+from main import app, con_dias  # noqa: E402
 
 c = TestClient(app, headers={"X-API-Key": "test"})
 NUEVO = {"cliente": "Carmen Ruiz", "producto": "Botín piel marrón", "talla": "38", "precio": 89.9, "abono_inicial": 10}
@@ -73,3 +73,10 @@ def test_datos_de_ejemplo():
     assert any(d < timedelta(0) for d in limites)  # fuera de plazo pendientes de vencer
     assert c.get("/api/apartados?estado=liquidado").json() and c.get("/api/vales").json()
     assert c.get(f"/api/ventas?desde={hoy}&hasta={hoy}").json() or hoy.weekday() == 6
+    # Los correos de data/correos/ cuentan con estos apartados de ejemplo.
+    por_id = {a["id"]: con_dias(a) for a in c.get("/api/apartados").json()}
+    assert por_id[1]["cliente"] == "Carmen Ruiz" and por_id[1]["pendiente"] >= 10
+    assert por_id[3]["cliente"] == "Lucía Gómez" and por_id[3]["pendiente"] == 12  # liquida
+    assert por_id[12]["cliente"] == "Laura Ortega" and por_id[12]["pendiente"] < 15  # paga de más
+    assert por_id[16]["cliente"] == "Paula Ramos" and por_id[16]["dias"] < 0  # fuera de plazo
+    assert por_id[24]["cliente"] == "Silvia Cortés" and por_id[24]["pendiente"] >= 5
