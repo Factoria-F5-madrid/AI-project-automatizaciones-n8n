@@ -1,6 +1,6 @@
 # 👟 Proyecto: Automatizaciones con n8n · Zapatería Paso Firme
 
-![Banner Proyectos](https://github.com/user-attachments/assets/94ecebe4-ceba-47ae-8f3c-af14bdfe8606)
+<img width="11520" height="3456" alt="n8n" src="https://github.com/user-attachments/assets/f8bdfbe6-0400-4f8e-a011-efb25c188db4" />
 
 ## 📋 Planteamiento
 
