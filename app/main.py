@@ -14,7 +14,8 @@ import urllib.parse
 import urllib.request
 from datetime import date, timedelta
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Form, Header, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request
+from fastapi.security import APIKeyHeader
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from openpyxl import Workbook
@@ -168,7 +169,11 @@ if os.getenv("SEED", "1") != "0" and not rows("SELECT 1 FROM apartados LIMIT 1")
 
 # --- API para n8n --------------------------------------------------------------
 
-def check_key(x_api_key: str = Header("")):
+# Declarar la cabecera como esquema de seguridad es lo que hace aparecer el botón Authorize en /docs.
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def check_key(x_api_key: str | None = Depends(api_key_header)):
     if not API_KEY or x_api_key != API_KEY:
         raise HTTPException(401, "Falta la cabecera X-API-Key o no es válida")
 
