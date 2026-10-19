@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paso Firme</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <style>
+    .activo { color: var(--pico-primary); } .liquidado { color: green; } .vencido { color: #c62828; }
+    td.num, th.num { text-align: right; } .error { color: #c62828; font-weight: bold; }
+  </style>
+</head>
+<body>
+<header class="container">
+  <nav>
+    <ul><li><strong>👟 Paso Firme</strong></li></ul>
+    <ul>
+      <li><a href="/">Apartados</a></li>
+      <li><a href="/ventas">Ventas</a></li>
+      <li><a href="/excel">Descargar Excel</a></li>
+      <li><a href="/docs">API</a></li>
+    </ul>
+  </nav>
+</header>
+<main class="container">
+  {% if error %}<p class="error">⚠️ {{ error }}</p>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

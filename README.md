@@ -13,7 +13,7 @@ Hoy todo se lleva **a mano**: una libreta para los apartados y un Excel donde Ma
 - El cierre de caja diario y la suma mensual se hacen con calculadora, tarde y con errores.
 - Marisa no sabe en ningún momento cuánto dinero tiene pendiente de cobrar.
 
-Vuestra pareja ha sido contratada para **automatizar este proceso con n8n** sin cambiar la forma de trabajar de la tienda: la dependienta debe poder registrar apartados, abonos y ventas desde el móvil o el ordenador en segundos, y el resto debe ocurrir solo.
+Marisa ya ha dado el primer paso: una app sencilla donde la dependienta registra apartados, abonos y ventas. Vuestra pareja ha sido contratada para **automatizar todo lo demás con n8n**: lo que hoy se hace con libreta, calculadora y memoria debe ocurrir solo.
 
 Como en la mayoría de equipos actuales, **el trabajo se hará con agentes de IA**: un agente (como [OpenCode](https://opencode.ai)) con modelos gratuitos ayuda a diseñar, generar y depurar los flujos, y vosotros hacéis de *tech lead*: definís qué automatizar, dais contexto al agente, revisáis lo que genera y decidís qué se pone en producción. El agente propone, pero la responsabilidad de los flujos es vuestra.
 
@@ -45,15 +45,67 @@ En [`data/`](data/) tenéis una muestra del Excel actual de la tienda, tal y com
 
 Son datos **reales del día a día**, con lo que eso implica: fechas en distintos formatos, nombres escritos de varias maneras, importes con el símbolo €, teléfonos que faltan, un abono inicial por debajo del mínimo y totales calculados a mano. Parte del trabajo es diseñar una estructura limpia para los datos y decidir qué hacer con estos casos.
 
+## 🏪 El software de la tienda
+
+Para no empezar de cero, la tienda ya tiene una **aplicación básica** en [`app/`](app/) que sustituye a la libreta. Vuestro trabajo **no es programarla**, sino **automatizar todo lo que pasa alrededor** con n8n.
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+
+| Servicio | URL | Para qué |
+|---|---|---|
+| App de la tienda | http://localhost:8000 | Registrar apartados, abonos y ventas, y descargar todo en **Excel** |
+| Documentación de la API | http://localhost:8000/docs | Probar los endpoints que usará n8n (Swagger) |
+| n8n | http://localhost:5678 | Construir las automatizaciones |
+
+**Qué hace ya la app:**
+
+- Guarda los datos (SQLite) y **aplica las reglas del apartado**: abono inicial mínimo, plazo de 90 días, no pagar de más y liquidación automática.
+- Pantallas para la dependienta: lista de apartados por estado, ficha de cada apartado con sus abonos y ventas directas.
+- Botón **Descargar Excel** con una hoja por tabla (Apartados, Abonos, Ventas, Vales), para que Marisa siga teniendo "su Excel".
+
+**Cómo se conecta con n8n:**
+
+- **La app avisa a n8n (webhook):** cada vez que pasa algo, la app envía un `POST` a `N8N_WEBHOOK_URL` (por defecto `http://n8n:5678/webhook/tienda`) con este formato:
+
+  ```json
+  { "evento": "abono.registrado", "datos": { "id": 1, "cliente": "Carmen Ruiz", "pendiente": 59.9, "estado": "activo", ... } }
+  ```
+
+  | Evento | Cuándo |
+  |---|---|
+  | `apartado.creado` | Se registra un apartado nuevo |
+  | `abono.registrado` | Se registra un abono (si `estado` es `liquidado`, ya está pagado) |
+  | `venta.registrada` | Se registra una venta directa |
+  | `apartado.vencido` | Se marca un apartado como vencido y se genera su vale |
+
+- **n8n consulta y actúa en la app (API REST):** desde n8n, con el nodo HTTP Request y la URL `http://tienda:8000/api/...`, enviando la cabecera `X-API-Key` con el valor de `API_KEY` del `.env`.
+
+  | Endpoint | Para qué |
+  |---|---|
+  | `GET /api/apartados?estado=activo` | Apartados (con lo abonado, lo pendiente y la fecha límite) |
+  | `GET /api/apartados/{id}` | Un apartado con todos sus abonos |
+  | `POST /api/apartados` | Crear un apartado (acepta `fecha` para migrar datos antiguos) |
+  | `POST /api/apartados/{id}/abonos` | Registrar un abono |
+  | `POST /api/apartados/{id}/vencer` | Marcar como vencido un apartado fuera de plazo y generar su vale |
+  | `GET /api/abonos?desde=&hasta=` | Abonos entre dos fechas |
+  | `GET /api/ventas?desde=&hasta=` | Ventas entre dos fechas |
+  | `POST /api/ventas` | Registrar una venta |
+  | `GET /api/vales` | Vales de compra generados |
+
+**Lo que la app NO hace (y os toca a vosotros con n8n):** avisar a los clientes, recordar vencimientos, vencer los apartados fuera de plazo, hacer cierres de caja, calcular la recaudación mensual y el total pendiente, enviar informes y migrar el Excel antiguo.
+
 ## 🎯 Objetivo
 
-Sustituir la libreta y las cuentas a mano por un conjunto de **flujos de n8n** que registren apartados, abonos y ventas, apliquen las reglas del negocio, avisen a los clientes y den a Marisa sus cifras diarias y mensuales sin hacer una sola suma.
+Conectar la app de la tienda con un conjunto de **flujos de n8n** que avisen a los clientes, controlen los vencimientos y den a Marisa sus cifras diarias y mensuales sin hacer una sola suma.
 
 ## 🛠️ Requisitos Técnicos
 
-1. **n8n** autoalojado con **Docker** (`docker-compose`)
-2. **Google Sheets** como sustituto del Excel, con una hoja por entidad (Clientes, Apartados, Abonos, Ventas, Cierres)
-3. Registro de datos mediante **formularios de n8n** (Form Trigger) o Webhook
+1. **App de la tienda y n8n** con **Docker** (el `docker-compose.yml` ya está incluido)
+2. Integración con la **app de la tienda** mediante el **Webhook** de eventos y su **API REST** (nodo HTTP Request)
+3. Google Sheets u otra herramienta similar solo para lo que la app no guarda (por ejemplo, el histórico de cierres de caja)
 4. Al menos un flujo programado (**Schedule Trigger**)
 5. Notificaciones a clientes y a la tienda (Gmail, Telegram, Slack…)
 6. Gestión segura de **credenciales** en n8n, **nunca escritas en los nodos ni subidas al repositorio**
@@ -66,11 +118,11 @@ Sustituir la libreta y las cuentas a mano por un conjunto de **flujos de n8n** q
 
 | # | Flujo | Disparador | Qué hace |
 |---|---|---|---|
-| 1 | **Nuevo apartado** | Formulario | Valida abono ≥ 5 € y precio, calcula lo que falta y la fecha límite, guarda el apartado y envía al cliente un resumen (qué ha apartado, cuánto ha pagado, cuánto le falta y hasta cuándo) |
-| 2 | **Registrar abono** | Formulario | Busca el apartado, comprueba que no esté vencido ni se pague de más, actualiza lo que falta y envía un recibo. Si llega a 0 €, lo marca como liquidado y avisa de que puede recoger sus zapatos |
-| 3 | **Venta directa** | Formulario | Registra una venta normal (producto, importe, forma de pago) |
-| 4 | **Cierre diario** | Programado (cada noche) | Suma ventas y abonos del día por forma de pago, lo guarda en la hoja de cierres y envía el resumen a Marisa |
-| 5 | **Recordatorios y vencimientos** | Programado (cada mañana) | Avisa a los clientes cuyo plazo vence en 7 días y en 1 día; marca como vencidos los que han pasado el plazo, genera el vale y avisa a la tienda para devolver los zapatos a la venta |
+| 1 | **Confirmación de apartado** | Evento `apartado.creado` | Envía al cliente un resumen: qué ha apartado, cuánto ha pagado, cuánto le falta y hasta cuándo |
+| 2 | **Recibo de abono** | Evento `abono.registrado` | Envía el recibo del abono con lo que falta. Si el apartado queda liquidado, avisa de que puede recoger sus zapatos |
+| 3 | **Venta grande** | Evento `venta.registrada` | Avisa a Marisa de las ventas por encima de un importe que ella decida |
+| 4 | **Cierre diario** | Programado (cada noche) | Pide a la API las ventas y abonos del día, suma por forma de pago, guarda el cierre y envía el resumen a Marisa |
+| 5 | **Recordatorios y vencimientos** | Programado (cada mañana) | Avisa a los clientes cuyo plazo vence en 7 días y en 1 día; vence por API los que han pasado el plazo (la app genera el vale) y avisa a la tienda para devolver los zapatos a la venta |
 | 6 | **Informe mensual** | Programado (día 1 de cada mes) | Recaudación del mes (ventas + abonos), total pendiente de cobro, apartados nuevos, liquidados y vencidos, enviado por correo a Marisa |
 | 7 | **Error Workflow** | Error en cualquier flujo | Avisa a la tienda con el flujo, el paso y el error |
 
@@ -93,7 +145,7 @@ Un flujo de n8n es un archivo JSON y n8n tiene una API REST, así que un agente 
 - **Elegir y configurar nodos:** consulta qué nodo usar y qué parámetros necesita, en lugar de buscarlo a mano en la documentación.
 - **Escribir el código de los nodos Code** y las expresiones complejas (`{{ $json... }}`) de transformación de datos.
 - **Depurar:** se le pasa el error de una ejecución fallida y el JSON del flujo, y propone la corrección.
-- **Infraestructura y pruebas:** `docker-compose.yml`, `.env.example`, payloads de prueba para los webhooks y scripts para exportar e importar flujos.
+- **Pruebas:** payloads de prueba para los webhooks y scripts para exportar e importar flujos.
 - **Documentar:** genera la documentación de cada flujo a partir de su JSON.
 
 El editor visual sigue siendo donde se prueba y se revisa: el agente no sustituye abrir el flujo y ejecutarlo.
@@ -110,9 +162,9 @@ El editor visual sigue siendo donde se prueba y se revisa: el agente no sustituy
 ## 📦 Entregables
 
 1. Mapa del proceso de apartado: cómo se hace hoy y cómo queda automatizado (diagrama BPMN, Miro, Excalidraw o similar)
-2. Diseño de las hojas de Google Sheets (columnas y relaciones entre ellas)
-3. Repositorio en GitHub con los flujos exportados en JSON y README con instrucciones para levantar n8n, importarlos y configurarlos
-4. `docker-compose.yml` y `.env.example` para levantar n8n en local con un solo comando
+2. Fork de este repositorio con los flujos exportados en JSON (carpeta `workflows/`) y README con instrucciones para importarlos y configurarlos
+3. Lista de credenciales y variables que necesita cada flujo (sin los valores)
+4. Un **flujo de prueba** o script que cree datos de ejemplo en la app por API para poder hacer la demo
 5. Datos de prueba y evidencias de ejecución (capturas o vídeo de un apartado completo: alta, abonos, liquidación)
 6. Tablero Kanban con historias de usuario (por ejemplo: *"Como dependienta quiero registrar un abono en menos de 30 segundos para no hacer esperar al cliente"*)
 7. `AGENTS.md` y carpeta `specs/` con las especificaciones de cada automatización
@@ -124,32 +176,30 @@ El editor visual sigue siendo donde se prueba y se revisa: el agente no sustituy
 
 ### 🟢 Nivel Esencial
 
-- n8n levantado con `docker-compose` y datos persistentes en un volumen
-- Google Sheets diseñado con hojas separadas para apartados, abonos y ventas
-- Flujos **1 (Nuevo apartado)**, **2 (Registrar abono)** y **4 (Cierre diario)** funcionando
-- Reglas validadas: abono inicial mínimo de 5 €, plazo de 3 meses y no se puede pagar más de lo que falta
-- Confirmación al cliente por correo o Telegram al apartar y al abonar
+- App y n8n levantados con `docker compose` y conectados (los eventos de la app llegan a n8n)
+- Flujos **1 (Confirmación de apartado)**, **2 (Recibo de abono)** y **4 (Cierre diario)** funcionando
+- Un único webhook que reparta los eventos con un nodo **Switch** según el campo `evento`
+- Mensajes al cliente por correo o Telegram con los importes correctos (los da la app, no se recalculan a mano)
 - **Error Workflow** que avise a la tienda
 - Credenciales gestionadas en n8n y flujos exportados en JSON en GitHub
 - `AGENTS.md` funcional y bitácora de IA con al menos los prompts de cada flujo principal
 
 ### 🟡 Nivel Medio
 
-- Flujos **3 (Venta directa)**, **5 (Recordatorios y vencimientos)** y **6 (Informe mensual)**
-- Vales de compra generados al vencer un apartado y canjeables en una venta
+- Flujos **3 (Venta grande)**, **5 (Recordatorios y vencimientos)** y **6 (Informe mensual)**
+- Aviso al cliente cuando su apartado vence, con el código y el importe de su vale
 - Sub-workflows reutilizables (**Execute Workflow**), por ejemplo "buscar apartado" o "enviar notificación"
-- **Migración del Excel actual**: flujo que importe los CSV de `data/`, limpie los datos (fechas, nombres, importes) y deje en un informe los casos dudosos
+- **Migración del Excel actual**: flujo que lea los CSV de `data/`, limpie los datos (fechas, nombres, importes), cree los apartados y abonos en la app por API (con su `fecha` original) y deje en un informe los casos dudosos
 - Informe mensual en PDF o con tabla en el correo
 - Comparativa de al menos 2 modelos gratuitos en una misma tarea (calidad, velocidad, errores)
 
 ### 🟠 Nivel Avanzado
 
-- **Asistente de IA por Telegram** (nodo AI Agent con un modelo gratuito y herramientas sobre las hojas):
+- **Asistente de IA por Telegram** (nodo AI Agent con un modelo gratuito y la API de la tienda como herramienta):
   - el cliente pregunta *"¿cuánto me falta?"* y recibe su saldo y fecha límite
   - Marisa pregunta *"¿cuánto se recaudó esta semana?"* o *"¿qué apartados vencen este mes?"*
 - Mensajes de recordatorio redactados por IA con un tono cercano, siempre con los importes calculados por el flujo (nunca por el modelo)
-- Persistencia en **PostgreSQL** en lugar de Google Sheets
-- Webhooks y formularios protegidos (autenticación) y validación de todos los datos de entrada
+- Webhook de n8n protegido (autenticación por cabecera) y validación de los datos que llegan
 - Datos personales conforme al RGPD: solo los datos necesarios, consentimiento para recibir mensajes y no enviar teléfonos ni nombres a modelos externos
 - Comandos, skills o subagentes personalizados en OpenCode para tareas repetitivas (generar specs, revisar flujos…)
 

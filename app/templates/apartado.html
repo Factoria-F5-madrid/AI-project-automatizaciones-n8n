@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Apartado #{{ a.id }} · <span class="{{ a.estado }}">{{ a.estado }}</span></h2>
+<article>
+  <p><strong>{{ a.cliente }}</strong>{% if a.telefono %} · {{ a.telefono }}{% endif %}{% if a.email %} · {{ a.email }}{% endif %}</p>
+  <p>{{ a.producto }}{% if a.talla %} · Talla {{ a.talla }}{% endif %}</p>
+  <div class="grid">
+    <div>Precio<br><strong>{{ "%.2f"|format(a.precio) }} €</strong></div>
+    <div>Abonado<br><strong>{{ "%.2f"|format(a.abonado) }} €</strong></div>
+    <div>Pendiente<br><strong>{{ "%.2f"|format(a.pendiente) }} €</strong></div>
+    <div>Fecha límite<br><strong>{{ a.fecha_limite }}</strong></div>
+  </div>
+  {% if vale %}<p>Vale de compra <strong>{{ vale.codigo }}</strong> por {{ "%.2f"|format(vale.importe) }} €</p>{% endif %}
+</article>
+
+<h3>Abonos</h3>
+<table class="striped">
+  <thead><tr><th>Fecha</th><th>Forma de pago</th><th class="num">Importe</th></tr></thead>
+  <tbody>
+  {% for b in abonos %}
+    <tr><td>{{ b.fecha }}</td><td>{{ b.forma_pago }}</td><td class="num">{{ "%.2f"|format(b.importe) }} €</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if a.estado == "activo" %}
+<form method="post" action="/apartados/{{ a.id }}/abonos">
+  <div class="grid">
+    <label>Importe (€) <input name="importe" type="number" step="0.01" min="0.01" max="{{ a.pendiente }}" required></label>
+    <label>Forma de pago
+      <select name="forma_pago">{% for f in formas_pago %}<option>{{ f }}</option>{% endfor %}</select>
+    </label>
+  </div>
+  <button type="submit">Registrar abono</button>
+</form>
+{% endif %}
+<p><a href="/">← Volver a apartados</a></p>
+{% endblock %}
