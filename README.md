@@ -63,7 +63,7 @@ docker compose up -d
 **Qué hace ya la app:**
 
 - Guarda los datos (SQLite) y **aplica las reglas del apartado**: abono inicial mínimo, plazo de 90 días, no pagar de más y liquidación automática.
-- Pantallas para la dependienta: lista de apartados por estado, ficha de cada apartado con sus abonos y ventas directas.
+- Pantallas para la dependienta: lista de apartados con buscador, filtros por estado y paginación, alta de apartados, ficha de cada apartado con sus abonos y ventas directas.
 - Botón **Descargar Excel** con una hoja por tabla (Apartados, Abonos, Ventas, Vales), para que Marisa siga teniendo "su Excel".
 
 **Cómo se conecta con n8n:**

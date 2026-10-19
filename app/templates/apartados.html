@@ -1,53 +1,55 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, euros, estado_badge, plazo, paginacion %}
+{% set seccion = "apartados" %}
 {% block content %}
-<h2>Apartados</h2>
-<p>
-  Ver:
-  {% for e in ["activo", "liquidado", "vencido", ""] %}
-    <a href="/?estado={{ e }}" {% if e == estado %}aria-current="page"{% endif %}>{{ e or "todos" }}</a>{% if not loop.last %} · {% endif %}
-  {% endfor %}
-</p>
-<div class="overflow-auto">
-<table class="striped">
-  <thead><tr><th>#</th><th>Cliente</th><th>Producto</th><th class="num">Precio</th><th class="num">Pendiente</th><th>Fecha límite</th><th>Estado</th></tr></thead>
-  <tbody>
-  {% for a in apartados %}
-    <tr>
-      <td><a href="/apartados/{{ a.id }}">{{ a.id }}</a></td>
-      <td>{{ a.cliente }}</td>
-      <td>{{ a.producto }}{% if a.talla %} · T{{ a.talla }}{% endif %}</td>
-      <td class="num">{{ "%.2f"|format(a.precio) }} €</td>
-      <td class="num">{{ "%.2f"|format(a.pendiente) }} €</td>
-      <td>{{ a.fecha_limite }}{% if a.estado == "activo" and a.fecha_limite < hoy %} ⚠️{% endif %}</td>
-      <td class="{{ a.estado }}">{{ a.estado }}</td>
-    </tr>
-  {% else %}
-    <tr><td colspan="7">No hay apartados.</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="page-head">
+  <h1>Apartados</h1>
+  <a class="btn btn-primary" href="/apartados/nuevo">{{ icon("plus") }} Nuevo apartado</a>
 </div>
 
-<details open>
-  <summary role="button" class="secondary">Nuevo apartado</summary>
-  <form method="post" action="/apartados">
-    <div class="grid">
-      <label>Cliente <input name="cliente" required></label>
-      <label>Teléfono <input name="telefono" type="tel"></label>
-      <label>Email <input name="email" type="email"></label>
-    </div>
-    <div class="grid">
-      <label>Producto <input name="producto" required placeholder="Botín piel marrón"></label>
-      <label>Talla <input name="talla"></label>
-      <label>Precio (€) <input name="precio" type="number" step="0.01" min="0.01" required></label>
-    </div>
-    <div class="grid">
-      <label>Abono inicial (€, mínimo 5) <input name="abono_inicial" type="number" step="0.01" min="5" required></label>
-      <label>Forma de pago
-        <select name="forma_pago">{% for f in formas_pago %}<option>{{ f }}</option>{% endfor %}</select>
-      </label>
-    </div>
-    <button type="submit">Guardar apartado</button>
-  </form>
-</details>
+<section class="card" aria-label="Lista de apartados">
+  <div class="toolbar">
+    <nav class="tabs" aria-label="Filtrar por estado">
+      {% for e, nombre in [("activo", "Activos"), ("liquidado", "Liquidados"), ("vencido", "Vencidos"), ("", "Todos")] %}
+        <a href="/?estado={{ e }}{% if q %}&q={{ q|urlencode }}{% endif %}" {% if e == estado %}aria-current="page"{% endif %}>
+          {{ nombre }} <span class="count">{{ conteo.get(e, 0) }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+    <form class="search" method="get" action="/" role="search">
+      <input type="hidden" name="estado" value="{{ estado }}">
+      {{ icon("search") }}
+      <label for="q" class="skip">Buscar apartado</label>
+      <input id="q" name="q" type="search" value="{{ q }}" placeholder="Buscar cliente, producto, teléfono o nº">
+    </form>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Nº</th><th>Cliente</th><th>Producto</th><th class="num">Precio</th><th class="num">Pendiente</th><th>Fecha límite</th><th>Estado</th></tr>
+      </thead>
+      <tbody>
+      {% for a in apartados %}
+        <tr>
+          <td class="muted">#{{ a.id }}</td>
+          <td><a class="row-link" href="/apartados/{{ a.id }}">{{ a.cliente }}</a>{% if a.telefono %}<span class="sub">{{ a.telefono }}</span>{% endif %}</td>
+          <td>{{ a.producto }}{% if a.talla %}<span class="sub">Talla {{ a.talla }}</span>{% endif %}</td>
+          <td class="num">{{ euros(a.precio) }}</td>
+          <td class="num"><strong>{{ euros(a.pendiente) }}</strong></td>
+          <td>{{ a.fecha_limite }}<span class="sub">{{ plazo(a) }}</span></td>
+          <td>{{ estado_badge(a.estado) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if not apartados %}
+      <div class="empty">
+        {% if q %}No hay apartados que coincidan con «{{ q }}». Prueba con otro nombre o <a href="/?estado=">busca en todos los estados</a>.
+        {% else %}Todavía no hay apartados aquí. <a href="/apartados/nuevo">Crea el primero</a>.{% endif %}
+      </div>
+    {% endif %}
+  </div>
+  {{ paginacion(pagina, paginas, total, "/?estado=" ~ estado ~ ("&q=" ~ q|urlencode if q else "") ~ "&") }}
+</section>
 {% endblock %}

@@ -51,8 +51,11 @@ def test_ventas_por_fecha_y_excel():
 
 def test_pantallas():
     assert c.get("/").status_code == 200
-    r = c.post("/apartados", data=NUEVO | {"abono_inicial": 2, "forma_pago": "efectivo"}, follow_redirects=True)
-    assert "abono inicial mínimo" in r.text
+    r = c.post("/apartados", data=NUEVO | {"abono_inicial": 2, "forma_pago": "efectivo"})
+    assert r.status_code == 422 and "abono inicial mínimo" in r.text and "Carmen Ruiz" in r.text  # no se pierde lo escrito
+    assert c.get("/apartados/nuevo").status_code == 200
+    assert c.get("/?estado=&q=Carmen&pagina=99").status_code == 200
+    assert c.get("/ventas?pagina=2").status_code == 200
 
 
 def test_datos_de_ejemplo():

@@ -1,0 +1,52 @@
+{# Iconos (Lucide, MIT) y piezas reutilizables #}
+{% macro icon(name, size=18) -%}
+<svg class="icon" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == "plus" %}<path d="M5 12h14"/><path d="M12 5v14"/>
+{%- elif name == "search" %}<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+{%- elif name == "apartados" %}<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
+{%- elif name == "ventas" %}<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>
+{%- elif name == "excel" %}<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>
+{%- elif name == "api" %}<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+{%- elif name == "logo" %}<path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/>
+{%- elif name == "prev" %}<path d="m15 18-6-6 6-6"/>
+{%- elif name == "next" %}<path d="m9 18 6-6-6-6"/>
+{%- elif name == "back" %}<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
+{%- elif name == "ok" %}<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>
+{%- elif name == "alert" %}<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+{%- elif name == "vale" %}<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>
+{%- endif %}
+</svg>
+{%- endmacro %}
+
+{% macro euros(n) %}{{ "{:,.2f}".format(n).replace(",", "X").replace(".", ",").replace("X", ".") }} €{% endmacro %}
+
+{% macro estado_badge(estado) -%}
+<span class="badge badge-{{ estado }}">{{ estado|capitalize }}</span>
+{%- endmacro %}
+
+{% macro plazo(a) -%}
+{% if a.estado != "activo" %}<span class="muted">—</span>
+{% elif a.dias < 0 %}<span class="badge badge-danger">{{ icon("alert", 14) }} Fuera de plazo ({{ -a.dias }} {{ "día" if a.dias == -1 else "días" }})</span>
+{% elif a.dias == 0 %}<span class="badge badge-warn">{{ icon("alert", 14) }} Vence hoy</span>
+{% elif a.dias == 1 %}<span class="badge badge-warn">Vence mañana</span>
+{% elif a.dias <= 7 %}<span class="badge badge-warn">Vence en {{ a.dias }} días</span>
+{% else %}<span class="muted">Quedan {{ a.dias }} días</span>{% endif %}
+{%- endmacro %}
+
+{% macro paginacion(pagina, paginas, total, base) -%}
+{% if paginas > 1 %}
+<nav class="pager" aria-label="Paginación">
+  <span class="muted">Página {{ pagina }} de {{ paginas }} · {{ total }} en total</span>
+  <div class="pager-buttons">
+    {% if pagina > 1 %}<a class="btn btn-ghost" href="{{ base }}pagina={{ pagina - 1 }}">{{ icon("prev") }} Anterior</a>{% endif %}
+    {% if pagina < paginas %}<a class="btn btn-ghost" href="{{ base }}pagina={{ pagina + 1 }}">Siguiente {{ icon("next") }}</a>{% endif %}
+  </div>
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{% macro forma_pago_select(formas_pago, actual="") -%}
+<select id="forma_pago" name="forma_pago">
+  {% for f in formas_pago %}<option value="{{ f }}" {% if f == actual %}selected{% endif %}>{{ f|capitalize }}</option>{% endfor %}
+</select>
+{%- endmacro %}
