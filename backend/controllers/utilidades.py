@@ -1,22 +1,17 @@
-"""CONTROLADOR · Utilidades: descargar los datos en Excel."""
+"""CONTROLADOR · Utilidades: descargar los datos en Excel. La URL está en routes/utilidades.py."""
 
 import io
 from datetime import date
 
-from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 
 import database
-from controllers.seguridad import exigir_clave
 from models import apartado
-
-router = APIRouter(prefix="/api", tags=["utilidades"], dependencies=[Depends(exigir_clave)])
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-@router.get("/excel", summary="Descargar todos los datos en un Excel (una hoja por tabla)")
 def excel():
     hojas = {
         "Apartados": (["id", "fecha", "cliente", "telefono", "email", "producto", "talla", "precio", "abonado",
