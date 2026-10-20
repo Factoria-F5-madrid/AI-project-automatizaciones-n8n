@@ -115,13 +115,33 @@ Para pararlo todo: `docker compose down`. Para borrar también los datos y empez
 
 ## 🏪 El software de la tienda
 
-Para no empezar de cero, la tienda ya tiene una **aplicación básica** en [`app/`](app/) que sustituye a la libreta. Vuestro trabajo **no es programarla**, sino **automatizar todo lo que pasa alrededor** con n8n. Cuando la levantéis (ver [Cómo empezar](#-cómo-empezar)) tendréis:
+Para no empezar de cero, la tienda ya tiene una **aplicación básica** (carpetas [`backend/`](backend/) y [`frontend/`](frontend/)) que sustituye a la libreta. Vuestro trabajo **no es programarla**, sino **automatizar todo lo que pasa alrededor** con n8n. Cuando la levantéis (ver [Cómo empezar](#-cómo-empezar)) tendréis:
 
 | Servicio | URL | Para qué |
 |---|---|---|
 | App de la tienda | http://localhost:8000 | Registrar apartados, abonos y ventas, y descargar todo en **Excel** |
 | Documentación de la API | http://localhost:8000/docs | Probar los endpoints que usará n8n (Swagger) |
 | n8n | http://localhost:5678 | Construir las automatizaciones |
+
+**Cómo está organizada (MVC).** No tenéis que programarla, pero conviene entenderla porque n8n va a hablar con ella. Separa tres responsabilidades; piensa en un restaurante:
+
+| Pieza | Carpeta | En el restaurante | Qué hace |
+|---|---|---|---|
+| **M**odelo | `backend/models/`, `backend/database.py` | La cocina | Guarda los datos y aplica las reglas (abono mínimo de 5 €, plazo de 90 días...) |
+| Schemas | `backend/schemas/` | La comanda | La forma exacta de los datos que entran y salen (con Pydantic) |
+| **C**ontrolador | `backend/controllers/` | El camarero | Recibe la petición HTTP, se la pasa a la cocina y devuelve la respuesta |
+| **V**ista | `frontend/` | El comedor y la carta | Lo que ve y usa la dependienta: HTML, CSS y JavaScript |
+| `main.py` | `backend/main.py` | El encargado | Solo junta las piezas, no tiene lógica |
+
+La idea clave: **la interfaz no tiene reglas ni toca la base de datos**. Pide todo a la API, igual que lo hará n8n: la pantalla y n8n son dos clientes del mismo camarero.
+
+```
+ Pantalla (frontend/) ─┐
+                       ├──▶ API (controllers/) ──▶ models/ ──▶ base de datos
+ n8n ──────────────────┘
+```
+
+Por eso la carpeta se llama `frontend/` y no `templates/`: no son plantillas que rellena el servidor, es una interfaz que **consulta la API**.
 
 **Qué hace ya la app:**
 
