@@ -7,6 +7,8 @@ y ventas y abonos de hoy y de los meses anteriores para cierres e informes.
 import random
 from datetime import date, timedelta
 
+from models import abono, apartado, venta
+
 CLIENTES = [
     "Carmen Ruiz", "Jorge Martín", "Lucía Gómez", "Ana Torres", "Pedro Sanz", "Rosa Díaz",
     "Miguel Ángel López", "Sofía Navarro", "Javier Moreno", "Elena Castro", "David Romero",
@@ -39,7 +41,9 @@ ESCENARIOS = [
 ]
 
 
-def seed(crear_apartado, registrar_abono, registrar_venta, vencer_apartado):
+def cargar():
+    crear_apartado, registrar_abono = apartado.crear, abono.registrar
+    registrar_venta, vencer_apartado = venta.registrar, apartado.vencer
     rnd = random.Random(42)
     hoy = date.today()
 
