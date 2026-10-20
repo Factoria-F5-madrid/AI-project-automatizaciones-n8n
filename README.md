@@ -129,15 +129,17 @@ Para no empezar de cero, la tienda ya tiene una **aplicación básica** (carpeta
 |---|---|---|---|
 | **M**odelo | `backend/models/`, `backend/database.py` | La cocina | Guarda los datos y aplica las reglas (abono mínimo de 5 €, plazo de 90 días...) |
 | Schemas | `backend/schemas/` | La comanda | La forma exacta de los datos que entran y salen (con Pydantic) |
-| **C**ontrolador | `backend/controllers/` | El camarero | Recibe la petición HTTP, se la pasa a la cocina y devuelve la respuesta |
+| Rutas | `backend/routes/` | El plano de la sala | Dice qué mesa (URL) atiende qué camarero (función): «los apartados nuevos los lleva `crear`» |
+| **C**ontrolador | `backend/controllers/` | El camarero | La lógica de cada petición: se la pasa a la cocina y devuelve la respuesta |
+| Middleware | `backend/middleware/` | El portero | Actúa antes o alrededor: comprueba la clave de la API y convierte los errores en respuestas claras |
 | **V**ista | `frontend/` | El comedor y la carta | Lo que ve y usa la dependienta: HTML, CSS y JavaScript |
 | `main.py` | `backend/main.py` | El encargado | Solo junta las piezas, no tiene lógica |
 
 La idea clave: **la interfaz no tiene reglas ni toca la base de datos**. Pide todo a la API, igual que lo hará n8n: la pantalla y n8n son dos clientes del mismo camarero.
 
 ```
- Pantalla (frontend/) ─┐
-                       ├──▶ API (controllers/) ──▶ models/ ──▶ base de datos
+ Pantalla (frontend/) ─┐                 ┌─ middleware/ (clave)
+                       ├──▶ routes/ ──▶ controllers/ ──▶ models/ ──▶ base de datos
  n8n ──────────────────┘
 ```
 

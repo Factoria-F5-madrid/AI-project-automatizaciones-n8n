@@ -1,4 +1,7 @@
-"""CONTROLADOR · Seguridad: comprobar la clave de la API (cabecera X-API-Key)."""
+"""MIDDLEWARE · Seguridad: comprobar la clave de la API (cabecera X-API-Key) antes de llegar al controlador.
+
+Las rutas de la API la piden con `dependencies=[Depends(exigir_clave)]`; las páginas no.
+"""
 
 from fastapi import Depends, HTTPException
 from fastapi.security import APIKeyHeader

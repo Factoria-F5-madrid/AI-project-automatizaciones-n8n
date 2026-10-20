@@ -1,18 +1,14 @@
-"""CONTROLADOR · Ventas: consultar y registrar ventas directas."""
+"""CONTROLADOR · Ventas: consultar y registrar ventas directas. Las URL están en routes/ventas.py."""
 
 from datetime import date
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Response
+from fastapi import BackgroundTasks, Response
 
-from controllers.seguridad import exigir_clave
 from models import venta
-from schemas.venta import VentaIn, VentaOut
+from schemas.venta import VentaIn
 from services import n8n
 
-router = APIRouter(prefix="/api/ventas", tags=["consultas"], dependencies=[Depends(exigir_clave)])
 
-
-@router.get("", response_model=list[VentaOut], summary="Ventas entre dos fechas (incluidas)")
 def listar(response: Response, desde: date | None = None, hasta: date | None = None, orden: str = "asc",
            pagina: int | None = None, por_pagina: int = 25):
     """Sin `pagina` devuelve todas. `orden=desc` muestra primero las más recientes."""
@@ -22,7 +18,6 @@ def listar(response: Response, desde: date | None = None, hasta: date | None = N
     return ventas
 
 
-@router.post("", response_model=VentaOut, status_code=201, summary="Registrar una venta")
 def registrar(datos: VentaIn, tareas: BackgroundTasks):
     nueva = venta.registrar(**datos.model_dump())
     tareas.add_task(n8n.avisar, "venta.registrada", nueva)
