@@ -123,70 +123,7 @@ Para no empezar de cero, la tienda ya tiene una **aplicación básica** (carpeta
 | Documentación de la API | http://localhost:8000/docs | Probar los endpoints que usará n8n (Swagger) |
 | n8n | http://localhost:5678 | Construir las automatizaciones |
 
-**Cómo está organizada (MVC).** No tenéis que programarla, pero conviene entenderla porque n8n va a hablar con ella. Separa tres responsabilidades; piensa en un restaurante:
-
-| Pieza | Carpeta | En el restaurante | Qué hace |
-|---|---|---|---|
-| **M**odelo | `backend/models/`, `backend/database.py` | La cocina | Guarda los datos y aplica las reglas (abono mínimo de 5 €, plazo de 90 días...) |
-| Schemas | `backend/schemas/` | La comanda | La forma exacta de los datos que entran y salen (con Pydantic) |
-| Rutas | `backend/routes/` | El plano de la sala | Dice qué mesa (URL) atiende qué camarero (función): «los apartados nuevos los lleva `crear`» |
-| **C**ontrolador | `backend/controllers/` | El camarero | La lógica de cada petición: se la pasa a la cocina y devuelve la respuesta |
-| Middleware | `backend/middleware/` | El portero | Actúa antes o alrededor: comprueba la clave de la API y convierte los errores en respuestas claras |
-| **V**ista | `frontend/` | El comedor y la carta | Lo que ve y usa la dependienta: HTML, CSS y JavaScript |
-| `main.py` | `backend/main.py` | El encargado | Solo junta las piezas, no tiene lógica |
-
-La idea clave: **la interfaz no tiene reglas ni toca la base de datos**. Pide todo a la API, igual que lo hará n8n: la pantalla y n8n son dos clientes del mismo camarero.
-
-```
- Pantalla (frontend/) ─┐                 ┌─ middleware/ (clave)
-                       ├──▶ routes/ ──▶ controllers/ ──▶ models/ ──▶ base de datos
- n8n ──────────────────┘
-```
-
-Por eso la carpeta se llama `frontend/` y no `templates/`: no son plantillas que rellena el servidor, es una interfaz que **consulta la API**.
-
-**Qué hace ya la app:**
-
-- Guarda los datos (SQLite) y **aplica las reglas del apartado**: abono inicial mínimo, plazo de 90 días, no pagar de más y liquidación automática.
-- Pantallas para la dependienta: lista de apartados con buscador, filtros por estado y paginación, alta de apartados, ficha de cada apartado con sus abonos y ventas directas.
-- Botón **Descargar Excel** con una hoja por tabla (Apartados, Abonos, Ventas, Vales), para que Marisa siga teniendo "su Excel".
-
-**Cómo se conecta con n8n:**
-
-- **La app avisa a n8n (webhook):** cada vez que pasa algo, la app envía un `POST` a `N8N_WEBHOOK_URL` (por defecto `http://n8n:5678/webhook/tienda`) con este formato:
-
-  ```json
-  { "evento": "abono.registrado", "datos": { "id": 1, "cliente": "Carmen Ruiz", "pendiente": 59.9, "estado": "activo", ... } }
-  ```
-
-  | Evento | Cuándo |
-  |---|---|
-  | `apartado.creado` | Se registra un apartado nuevo |
-  | `abono.registrado` | Se registra un abono (si `estado` es `liquidado`, ya está pagado) |
-  | `venta.registrada` | Se registra una venta directa |
-  | `apartado.vencido` | Se marca un apartado como vencido y se genera su vale |
-
-- **n8n consulta y actúa en la app (API REST):** desde n8n, con el nodo HTTP Request y la URL `http://tienda:8000/api/...`, enviando la cabecera `X-API-Key` con el valor de `API_KEY` del `.env`.
-
-  | Endpoint | Para qué |
-  |---|---|
-  | `GET /api/apartados?estado=activo` | Apartados (con lo abonado, lo pendiente y la fecha límite) |
-  | `GET /api/apartados/{id}` | Un apartado con todos sus abonos |
-  | `POST /api/apartados` | Crear un apartado (acepta `fecha` para migrar datos antiguos) |
-  | `POST /api/apartados/{id}/abonos` | Registrar un abono |
-  | `POST /api/apartados/{id}/vencer` | Marcar como vencido un apartado fuera de plazo y generar su vale |
-  | `GET /api/abonos?desde=&hasta=` | Abonos entre dos fechas |
-  | `GET /api/ventas?desde=&hasta=` | Ventas entre dos fechas |
-  | `POST /api/ventas` | Registrar una venta |
-  | `GET /api/vales` | Vales de compra generados |
-
-**Datos de ejemplo:** la primera vez que arranca, la app se llena sola con unos meses de actividad de la tienda (24 apartados y unas 250 ventas), con fechas relativas al día en que la levantéis. Así siempre hay:
-
-- apartados que vencen **dentro de 7 días** y **mañana** (para los recordatorios),
-- apartados **fuera de plazo** que siguen activos (para que vuestro flujo los venza),
-- apartados liquidados, uno ya vencido con su vale, y ventas y abonos de **hoy** y de los **meses anteriores** (para el cierre diario y el informe mensual).
-
-Los clientes de ejemplo tienen correos `@example.com`: para recibir vosotros los mensajes, cread un apartado nuevo con vuestro correo. Para empezar de cero, `docker compose down -v` borra los datos, y con `SEED=0` en el `.env` la app arranca vacía.
+> 📘 **Leed la [Guía de la app](docs/guia-de-la-app.md) antes de empezar a construir flujos.** Explica cómo está hecha la app, **qué endpoints tiene**, **cuándo y cómo avisa a n8n por webhook** (con los avisos reales y cómo se le envía el estado), los errores que puede devolver y cómo probarla desde la terminal.
 
 **Lo que la app NO hace (y os toca a vosotros con n8n):** avisar a los clientes, recordar vencimientos, vencer los apartados fuera de plazo, hacer cierres de caja, calcular la recaudación mensual y el total pendiente, enviar informes y migrar el Excel antiguo.
 
